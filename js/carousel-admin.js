@@ -19,7 +19,8 @@ jQuery(document).ready(function($){
         var element = $(this);
         var regex = /slick-carousel_image-(\d+)/;
         var mixed = regex.exec(element.attr('id'));
-        console.log(mixed);
+        //TODO: put a spinny wheel or something over the image while removal is pending. ajax can sometimes take a while...
+        //TODO: put a check on the image so that if multiple clicks, a second removal request is not sent
         $.ajax({
             url : slickCarousel.ajaxUrl,
             data : {
