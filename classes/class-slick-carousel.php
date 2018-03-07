@@ -328,15 +328,6 @@ class SlickCarousel{
         'type' => 'checkbox',
     );
 
-    private $number_of_inputs = array(
-        'title' => 'Number of images',
-        'label_for' => '',
-        'option_name' => 'numofinputs',
-        'default_value' => 1,
-        'description' => '',
-        'type' => 'hidden',
-    );
-
     private $tabs = array(
         'cf' => 'Image Configuration',
         'lg' => 'Full Screen / Large',
@@ -361,16 +352,18 @@ class SlickCarousel{
         add_action('admin_enqueue_scripts', array($this, 'register_scripts'));
         add_action('after_setup_theme', array($this, 'register_image_sizes'));
         add_action('wp_ajax_slick_carousel_add_image', array($this, 'add_image'));
+        add_action('wp_ajax_slick_carousel_drop_image', array($this, 'drop_image'));
+        
+        add_filter('wp_prepare_attachment_for_js', array($this, 'prepare_attachments'),10,3);
     }
 
     public function register_scripts(){
         wp_register_script('carousel-admin-js', $this->dir_url.'js/carousel-admin.js', array('jquery'), false, true); 
-        $num_of_inputs = get_option($this->option_prefix.'numofinputs-cf',0);
         wp_localize_script('carousel-admin-js', 'slickCarousel', 
             array(
-                'numOfInputs' => $num_of_inputs,
                 'ajaxUrl' => admin_url('admin-ajax.php'),
-                'action' => 'slick_carousel_add_image'
+                'addAction' => 'slick_carousel_add_image',
+                'dropAction' => 'slick_carousel_drop_image'
             )
         );
     }
@@ -438,29 +431,12 @@ class SlickCarousel{
 
 
         //#region - the settings section for uploading images
-        //TODO: see if i can update the value of numofinputs-cf via ajax in order to properly field and set the other options
-        //TODO: research register_setting to see what it does. if can't use it directly, will likely need to emulate its behavior
         add_settings_section(
             $this->option_prefix.'section-images',
             'Image upload and configuration',
             array($this, 'output_section_images_configs_for_admin'),
             $this->option_prefix.'tab-cf'
         );
-
-        //add the hidden "quantity of images" option
-        register_setting(
-            $this->option_prefix.'section-images',
-            $this->option_prefix.'numofinputs-cf'
-        );
-
-        ////register the settings for as many as num of inputs allows
-        //$num_of_inputs = get_option($this->option_prefix.'numofinputs-cf', 0);
-        //for($i = 1; $i <= $num_of_inputs; $i++){
-        //    register_setting(
-        //        $this->option_prefix.'section-images',
-        //        $this->option_prefix."image-$i"
-        //    );
-        //}
         //#endregion
     }
 
@@ -468,7 +444,6 @@ class SlickCarousel{
         wp_enqueue_media();
         wp_enqueue_script('carousel-admin-js');
         $prefix = $this->option_prefix;
-        $num_of_inputs = get_option($this->option_prefix.'numofinputs-cf', 0);
         $ids = get_option($this->option_prefix.'images',array()); //this array stores attachment ids of the images selected for the carousel
         $images = array();
         foreach($ids as $id){
@@ -477,14 +452,10 @@ class SlickCarousel{
                 'src' => wp_get_attachment_image_src($id, 'slick-carousel-admin-preview')
             );
         }
-
         require_once $this->dir_path.'/templates/admin-config.php';
     }
 
     public function add_image(){
-        error_log('got to ajax function');
-        $num_of_inputs = $_POST['numOfInputs'];
-        update_option($this->option_prefix.'numofinputs-cf', $num_of_inputs);
         
         $images = get_option($this->option_prefix.'images', array());
         $images[] = $_POST['attachmentId'];
@@ -495,6 +466,42 @@ class SlickCarousel{
         echo json_encode($result);
         
         wp_die();
+    }
+
+    public function drop_image(){
+        error_log("received id to drop: {$_POST['attachmentId']}");
+        $images = get_option($this->option_prefix.'images', array());
+        $index = array_search($_POST['attachmentId'], $images);
+        error_log("found image at location $index in images array");
+        if($index) { 
+            unset($images[$index]);
+            update_option($this->option_prefix.'images', $images);
+            error_log("what's left of images array after delete: ". json_encode($images));
+            echo json_encode(array("result" => "ok"));
+        } else {
+            error_log("no deletion occurred. index could not be located");
+            echo json_encode(array("result" => "error", "message" => "could not locate image"));
+        }
+        wp_die();
+    }
+
+    public function prepare_attachments($response, $attachment, $meta){
+        $size = 'slick-carousel-admin-preview';
+        
+        if(isset($meta['sizes'][$size])){
+            $size_meta = $meta['sizes'][$size];
+            $attachment_url = wp_get_attachment_url($attachment->ID);
+            $base_url = str_replace(wp_basename($attachment_url), '', $attachment_url);
+
+            $response['sizes'][$size] = array(
+                'height' => $size_meta['height'],
+                'width' => $size_meta['width'],
+                'url' => $base_url . $size_meta['file'],
+                'orientation' => $size_meta['height'] > $size_meta['width'] ? 'portrait' : 'landscape'
+            );
+
+        }
+        return $response;
     }
 
     public function generic_input_callback($args){
