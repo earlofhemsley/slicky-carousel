@@ -366,6 +366,8 @@ class SlickCarousel{
                 'dropAction' => 'slick_carousel_drop_image'
             )
         );
+
+        wp_enqueue_style('carousel-admin-css', $this->dir_url.'css/slick-carousel-admin.css');
     }
 
     public function add_admin_page(){
@@ -447,8 +449,7 @@ class SlickCarousel{
         $ids = get_option($this->option_prefix.'images',array()); //this array stores attachment ids of the images selected for the carousel
         $images = array();
         foreach($ids as $id){
-            $images[] = array(
-                'id' => $id,
+            $images[$id] = array(
                 'src' => wp_get_attachment_image_src($id, 'slick-carousel-admin-preview')
             );
         }
@@ -473,7 +474,7 @@ class SlickCarousel{
         $images = get_option($this->option_prefix.'images', array());
         $index = array_search($_POST['attachmentId'], $images);
         error_log("found image at location $index in images array");
-        if($index) { 
+        if($index !== false) { 
             unset($images[$index]);
             update_option($this->option_prefix.'images', $images);
             error_log("what's left of images array after delete: ". json_encode($images));

@@ -1,5 +1,4 @@
 <?php 
-    echo "num of inputs: $num_of_inputs<br />";
     echo "images: "; print_r($images); echo '<br />';
     //you're in a form already.
     //print the hidden input for num of inputs
@@ -10,8 +9,8 @@
 <button id="upload_image_button" type="button"><?php _e('Add an image'); ?></button>   
 <div id="carousel_image_preview_bin">
 <?php 
-    foreach($images as $image){
-        echo "<img id='slick-carousel_image-{$image['id']}' class='slick-carousel-image' src='{$image['src'][0]}' style='width: {$image['src'][1]}px;'  />";
+    foreach($images as $id => $image){
+        echo "<div class='slick-carousel-image-container' id='slick-carousel_image-{$id}' style='width: {$image['src'][1]}px;'><img class='slick-carousel-image' src='{$image['src'][0]}'  /></div>";
     }
 ?>    
 </div>

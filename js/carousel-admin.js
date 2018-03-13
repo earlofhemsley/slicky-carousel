@@ -15,12 +15,11 @@ jQuery(document).ready(function($){
 
     //TODO: slick it up
 
-    $('#carousel_image_preview_bin').on('click', 'img.slick-carousel-image', function(ev){
+    $('#carousel_image_preview_bin').on('click', '.slick-carousel-image-container', function(ev){
         var element = $(this);
         var regex = /slick-carousel_image-(\d+)/;
         var mixed = regex.exec(element.attr('id'));
-        //TODO: put a spinny wheel or something over the image while removal is pending. ajax can sometimes take a while...
-        //TODO: put a check on the image so that if multiple clicks, a second removal request is not sent
+        
         $.ajax({
             url : slickCarousel.ajaxUrl,
             data : {
@@ -29,6 +28,13 @@ jQuery(document).ready(function($){
             },
             method: "POST",
             dataType : "json",
+            beforeSend : function(xhr){
+                if( element.hasClass('pending-removal') ){
+                    return false;
+                } else {
+                    element.addClass('pending-removal');
+                }
+            },
             success : function(data, textStatus, xhr){
                 //slick shenanigans
                 if(data.result == "ok") element.remove();
@@ -61,13 +67,17 @@ jQuery(document).ready(function($){
             var attachment = file_frame.state().get('selection').first().toJSON();
 
             //slick shenanigans
+            var new_div = document.createElement('div');
+            new_div.id = "slick-carousel_image-"+attachment.id;
+            new_div.className = "slick-carousel-image-container";
+            new_div.style.width = attachment.sizes['slick-carousel-admin-preview'].width + 'px';
+
             var new_img = document.createElement('img');
-            new_img.id = "slick-carousel_image-"+attachment.id;
             new_img.className = "slick-carousel-image";
-            new_img.dataset.target = "slick-carousel_id_"+attachment.id;
             new_img.src = attachment.sizes['slick-carousel-admin-preview'].url;
-            //new_img.style.width = "175px";
-            $("#carousel_image_preview_bin").append(new_img);
+            
+            new_div.append(new_img);
+            $("#carousel_image_preview_bin").append(new_div);
 
             $.ajax({
                 method: "POST",
