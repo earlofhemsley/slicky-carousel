@@ -340,11 +340,32 @@ class SlickCarousel{
     private $admin_page_slug = 'slick-carousel';
     private $dir_path;
     private $dir_url;
+    private $options_string;
 
     public function __construct($dir_path, $dir_url){
         $this->dir_path = $dir_path;
         $this->dir_url = $dir_url;
+
+        $this->options_string = "<optgroup><option value='-1'>Nowhere</option></optgroup>";
+        $this->options_string .= $this->generate_options_group('posts', array(
+            'numberposts' => -1,
+            'orderby' => 'date',
+        ));
+        $this->options_string .= $this->generate_options_group('products', array(
+            'numberposts' => -1,
+            'orderby' => 'date',
+            'post_type' => 'product'
+        ));
     }
+
+    private function generate_options_group($label, $args){
+        $posts = get_posts($args);
+        if(sizeof($posts) == 0) return "";
+        return "<optgroup label='$label'>" . implode("", array_map(function($post){
+            return "<option value='{$post->ID}'>{$post->post_title}</option>";
+        }, $posts)) . "</optgroup>" ;
+    }
+
 
     public function init(){
         add_action('admin_menu', array($this, 'add_admin_page'));
@@ -361,13 +382,14 @@ class SlickCarousel{
         wp_register_script('carousel-admin-js', $this->dir_url.'js/carousel-admin.js', array('jquery'), false, true); 
         wp_localize_script('carousel-admin-js', 'slickCarousel', 
             array(
+                'optionsString' => $this->options_string,
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'addAction' => 'slick_carousel_add_image',
                 'dropAction' => 'slick_carousel_drop_image'
             )
         );
 
-        wp_enqueue_style('carousel-admin-css', $this->dir_url.'css/slick-carousel-admin.css');
+        wp_register_style('carousel-admin-css', $this->dir_url.'css/slick-carousel-admin.css');
     }
 
     public function add_admin_page(){
@@ -445,22 +467,42 @@ class SlickCarousel{
     public function output_section_images_configs_for_admin(){
         wp_enqueue_media();
         wp_enqueue_script('carousel-admin-js');
+        wp_enqueue_style('carousel-admin-css');
         $prefix = $this->option_prefix;
-        $ids = get_option($this->option_prefix.'images',array()); //this array stores attachment ids of the images selected for the carousel
+        $options_string = $this->options_string;
+        //this array stores attachment ids of the images selected for the carousel and the posts they are supposed to link to 
+        $elements = get_option($this->option_prefix.'elements',array()); 
         $images = array();
-        foreach($ids as $id){
-            $images[$id] = array(
-                'src' => wp_get_attachment_image_src($id, 'slick-carousel-admin-preview')
+        
+
+        foreach($elements as $el){
+            $images[] = array(
+                'img_id' => $el['img_id'],
+                'img_src' => wp_get_attachment_image_src($el['img_id'], 'slick-carousel-admin-preview'),
+                'dest_id' => $el['dest_id'],
             );
         }
         require_once $this->dir_path.'/templates/admin-config.php';
     }
 
-    public function add_image(){
+    public function set_destination(){
+        //receives an index and a dest id
+        //save to option object and return ok
+
+    }
         
-        $images = get_option($this->option_prefix.'images', array());
-        $images[] = $_POST['attachmentId'];
-        update_option($this->option_prefix.'images', $images);
+    public function add_image(){
+        //receives: img id
+        //sets initial dest id to -1 (for nothing)
+        //returns ok
+
+        $elements = get_option($this->option_prefix.'elements', array());
+        $elements[] = array(
+            'img_id' => $_POST['attachmentId'],
+            'dest_id' => -1
+        ); 
+        error_log("after add_image, here's the option value: " . json_encode($elements));
+        update_option($this->option_prefix.'elements', $elements);
         
         $result = array('result' => 'ok');
         error_log('returning this to javascript '. json_encode($result));
@@ -470,18 +512,19 @@ class SlickCarousel{
     }
 
     public function drop_image(){
-        error_log("received id to drop: {$_POST['attachmentId']}");
-        $images = get_option($this->option_prefix.'images', array());
-        $index = array_search($_POST['attachmentId'], $images);
-        error_log("found image at location $index in images array");
-        if($index !== false) { 
-            unset($images[$index]);
-            update_option($this->option_prefix.'images', $images);
-            error_log("what's left of images array after delete: ". json_encode($images));
+        extract($_POST);
+        error_log("received index to drop: $index");
+        $elements = get_option($this->option_prefix.'elements', array());
+        if(sizeof($elements) - 1 >= $index) { 
+            array_splice($elements, $index, 1);
+            //unset($elements[$index]);
+            //$elements = array_values($elements);
+            update_option($this->option_prefix.'elements', $elements);
+            error_log("what's left of elements array after delete: ". json_encode($elements));
             echo json_encode(array("result" => "ok"));
         } else {
             error_log("no deletion occurred. index could not be located");
-            echo json_encode(array("result" => "error", "message" => "could not locate image"));
+            echo json_encode(array("result" => "error", "message" => "index doesn't exist in db obj"));
         }
         wp_die();
     }
