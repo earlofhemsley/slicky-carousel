@@ -1,29 +1,15 @@
-//var refreshListeners;
-//(function($){
-//    refreshListeners = function(selector){
-//        $(selector).off('click');
-//        $(selector).on('click', function(e){
-//            window.alert("click received");
-//        });
-//        console.log('listeners refreshed');
-//    }
-//})(jQuery);
-
 jQuery(document).ready(function($){
     var file_frame;
-    console.log(slickCarousel);
 
     //TODO: slick it up
 
     $('#carousel_image_preview_bin').on('click', '.slick-carousel-drop-element', function(ev){
         var element = $(this).closest('.slick-carousel-image-element');
-        var regex = /slick-carousel_image-(\d+)/;
-        var mixed = regex.exec(element.attr('id'));
         
         $.ajax({
             url : slickCarousel.ajaxUrl,
             data : {
-                index : mixed[1],
+                index : element.data('index'),
                 action : slickCarousel.dropAction
             },
             method: "POST",
@@ -36,12 +22,15 @@ jQuery(document).ready(function($){
                 }
             },
             success : function(data, textStatus, xhr){
-                if(data.result != "ok"){ window.alert(data.message); }
+                if(data.result != "ok"){ 
+                    element.removeClass('pending-removal');
+                    window.alert(data.message); 
+                }
                 else {
                     element.remove();
                     var i = 0;
                     $('.slick-carousel-image-element').each(function(){
-                        $(this).attr('id', 'slick-carousel_image-' + i);
+                        $(this).data('index', i);
                         i++;
                     });
                 }
@@ -50,7 +39,39 @@ jQuery(document).ready(function($){
 
     });
 
-    //TODO: event handler for change on select dropdown (change destination of image)
+    $('#carousel_image_preview_bin').on('change', '.slick-carousel-change-destination', function(ev){
+        var newDestination = $(this).find(':selected').val();
+        var index = $(this).closest('.slick-carousel-image-element').data('index');
+        var bin = $(this).parent().next('.message-bin');
+        $.ajax({
+            url : slickCarousel.ajaxUrl,
+            method : "POST",
+            dataType : "json",
+            data : {
+                action : slickCarousel.changeDestinationAction,
+                index : index,
+                dest : newDestination
+            },
+            beforeSend : function(xhr){
+                bin.text("working...");
+                //spinny wheel
+            },
+            success : function(data, textStatus, xhr){
+                if(data.result == "ok"){
+                    bin.text("success!")
+                    window.setTimeout(function(){bin.text('');}, 2000);
+                    //checkmark
+                }
+                else {
+                    window.alert(data.message);
+                    bin.text("failure :(");
+                }
+            },
+            error : function(){
+                bin.text("failure :(");
+            }
+        });
+    });
     
     $('#upload_image_button').on('click', function(event){
         event.preventDefault();
@@ -69,28 +90,30 @@ jQuery(document).ready(function($){
         file_frame.on('select', function(){
 
             var attachment = file_frame.state().get('selection').first().toJSON();
+            var index = $('.slick-carousel-image-element').length;
 
-            //slick shenanigans
-           
             var rootElement = $('<div></div>')
                 .addClass('slick-carousel-image-element')
-                .attr('id','slick-carousel_image-' + $('.slick-carousel-image-element').length)
+                .data('index', index)
             ;
 
-            var imageContainer = $('<div></div>').addClass('slick-carousel-image-container')
+            var imageContainer = $('<div></div>')
+                .addClass('slick-carousel-image-container')
                 .append($('<img>').attr('src', attachment.sizes['slick-carousel-admin-preview'].url))
             ;
 
             var imageAttributes = $('<div></div>')
                 .addClass('slick-carousel-image-attributes')
                 .append($('<div></div>').append($('<button></button>').attr('type','button').addClass('slick-carousel-drop-element').text('Remove')))
-                .append($('<p></p>').text("Image Id: " + attachment.id))
-                .append($('<p></p>').html("Attached to post w/ Id of <span id='dest_id_img_" + attachment.id + "'>-1</span>"))
             ;
 
             var changeDestination = $('<div></div>')
-                .append($('<span></span>').text('Set Destination: '))
-                .append($('<select></select>').addClass('slick-carousel-change-destination').html(slickCarousel.optionsString))
+                .append($('<p></p>').text('Change the place a user will visit when clicking this image in the carousel:'))
+                .append($('<p></p>').append($('<select></select>')
+                    .addClass('slick-carousel-change-destination')
+                    .html(slickCarousel.optionsString)
+                ))
+                .append($('<p></p>').addClass('message-bin'))
             ;
             imageAttributes.append(changeDestination);
 
@@ -106,11 +129,9 @@ jQuery(document).ready(function($){
                 },
                 dataType: "json",
                 url : slickCarousel.ajaxUrl,
-                success : function(data, textStatus, xhr){
-                    //window.alert("RESULT: " + data.result);
-                },
                 error : function(xhr, textStatus, error){
-                    //window.alert("ERROR: " + textStatus);
+                    rootElement.remove();
+                    window.alert("An error has occured: " + textStatus);
                 }             
             });
         });

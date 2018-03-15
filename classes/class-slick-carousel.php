@@ -347,22 +347,23 @@ class SlickCarousel{
         $this->dir_url = $dir_url;
 
         $this->options_string = "<optgroup><option value='-1'>Nowhere</option></optgroup>";
-        $this->options_string .= $this->generate_options_group('posts', array(
+        $this->options_string .= $this->generate_options_group('posts', null, array(
             'numberposts' => -1,
             'orderby' => 'date',
         ));
-        $this->options_string .= $this->generate_options_group('products', array(
+        $this->options_string .= $this->generate_options_group('products', null, array(
             'numberposts' => -1,
             'orderby' => 'date',
             'post_type' => 'product'
         ));
     }
 
-    private function generate_options_group($label, $args){
+    private function generate_options_group($label, $selected, $args){
         $posts = get_posts($args);
         if(sizeof($posts) == 0) return "";
-        return "<optgroup label='$label'>" . implode("", array_map(function($post){
-            return "<option value='{$post->ID}'>{$post->post_title}</option>";
+        return "<optgroup label='$label'>" . implode("", array_map(function($post) use ($selected){
+            $selected_attr = $post->ID == $selected ? 'selected' : '';
+            return "<option value='{$post->ID}' $selected_attr>{$post->post_title}</option>";
         }, $posts)) . "</optgroup>" ;
     }
 
@@ -374,6 +375,7 @@ class SlickCarousel{
         add_action('after_setup_theme', array($this, 'register_image_sizes'));
         add_action('wp_ajax_slick_carousel_add_image', array($this, 'add_image'));
         add_action('wp_ajax_slick_carousel_drop_image', array($this, 'drop_image'));
+        add_action('wp_ajax_slick_carousel_update_destination', array($this, 'change_destination'));
         
         add_filter('wp_prepare_attachment_for_js', array($this, 'prepare_attachments'),10,3);
     }
@@ -385,7 +387,8 @@ class SlickCarousel{
                 'optionsString' => $this->options_string,
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'addAction' => 'slick_carousel_add_image',
-                'dropAction' => 'slick_carousel_drop_image'
+                'dropAction' => 'slick_carousel_drop_image',
+                'changeDestinationAction' => 'slick_carousel_update_destination'
             )
         );
 
@@ -469,28 +472,33 @@ class SlickCarousel{
         wp_enqueue_script('carousel-admin-js');
         wp_enqueue_style('carousel-admin-css');
         $prefix = $this->option_prefix;
-        $options_string = $this->options_string;
         //this array stores attachment ids of the images selected for the carousel and the posts they are supposed to link to 
         $elements = get_option($this->option_prefix.'elements',array()); 
         $images = array();
         
 
         foreach($elements as $el){
+            $options_string = "<optgroup><option value='-1'>Nowhere</option></optgroup>";
+            $options_string .= $this->generate_options_group('posts', $el['dest_id'], array(
+                'numberposts' => -1,
+                'orderby' => 'date',
+            ));
+            $options_string .= $this->generate_options_group('products', $el['dest_id'], array(
+                'numberposts' => -1,
+                'orderby' => 'date',
+                'post_type' => 'product'
+            ));
+
             $images[] = array(
                 'img_id' => $el['img_id'],
                 'img_src' => wp_get_attachment_image_src($el['img_id'], 'slick-carousel-admin-preview'),
                 'dest_id' => $el['dest_id'],
+                'options' => $options_string
             );
         }
         require_once $this->dir_path.'/templates/admin-config.php';
     }
 
-    public function set_destination(){
-        //receives an index and a dest id
-        //save to option object and return ok
-
-    }
-        
     public function add_image(){
         //receives: img id
         //sets initial dest id to -1 (for nothing)
@@ -525,6 +533,21 @@ class SlickCarousel{
         } else {
             error_log("no deletion occurred. index could not be located");
             echo json_encode(array("result" => "error", "message" => "index doesn't exist in db obj"));
+        }
+        wp_die();
+    }
+
+    public function change_destination(){
+        extract($_POST); //index and dest
+        $elements = get_option($this->option_prefix.'elements', array());
+        if(sizeof($elements) - 1 >= $index && 0 <= $index){
+            $elements[$index]['dest_id'] = $dest;
+            update_option($this->option_prefix.'elements', $elements);
+            error_log("elements array after destination change: ". json_encode($elements));
+            echo json_encode(array("result" => 'ok'));
+        } else {
+            error_log("no update occured because the index was out of bounds");
+            echo json_encode(array("result" => "error", "message" => "index received was out of bounds"));
         }
         wp_die();
     }

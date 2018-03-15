@@ -7,17 +7,16 @@
 <?php 
     foreach($images as $index => $image){
         echo <<< EOT
-            <div class="slick-carousel-image-element" id="slick-carousel_image-$index">
+            <div class="slick-carousel-image-element" data-index="$index">
                 <div class="slick-carousel-image-container">
                     <img src="{$image['img_src'][0]}" />
                 </div>
                 <div class="slick-carousel-image-attributes">
                     <div><button type="button" class="slick-carousel-drop-element">Remove</button></div>
-                    <p>Image Id: {$image['img_id']}</p>
-                    <p>Attached to post w/ ID of <span id="dest_id_img_{$image['img_id']}">{$image['dest_id']}</span></p>
                     <div>
-                        <span>Change destination:</span>
-                        <select class="slick-carousel-change-destination">$options_string</select>
+                        <p>Change the place a user will visit when clicking this image in the carousel:</p>
+                        <p><select class="slick-carousel-change-destination">{$image['options']}</select></p>
+                        <p class="message-bin"></p>
                     </div>
                 </div>
             </div>
