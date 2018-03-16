@@ -328,12 +328,14 @@ class SlickCarousel{
         'type' => 'checkbox',
     );
 
+
     private $tabs = array(
+        'pv' => 'Preview',
         'cf' => 'Image Configuration',
-        'lg' => 'Full Screen / Large',
-        'md' => 'Medium Size',
-        'sm' => 'Small Size',
-        'xs' => 'Extra Small / Mobile',
+        'lg' => 'Large Screens',
+        'md' => 'Medium Screens',
+        'sm' => 'Small Screens',
+        'xs' => 'Mobile Screens'
     );
 
     private $option_prefix = "slick-carousel-";
@@ -351,21 +353,16 @@ class SlickCarousel{
             'numberposts' => -1,
             'orderby' => 'date',
         ));
-        $this->options_string .= $this->generate_options_group('products', null, array(
-            'numberposts' => -1,
-            'orderby' => 'date',
-            'post_type' => 'product'
-        ));
+        //woocommerce support
+        if( class_exists('WooCommerce') ){
+            $this->options_string .= $this->generate_options_group('products', null, array(
+                'numberposts' => -1,
+                'orderby' => 'date',
+                'post_type' => 'product'
+            ));
+        }
     }
 
-    private function generate_options_group($label, $selected, $args){
-        $posts = get_posts($args);
-        if(sizeof($posts) == 0) return "";
-        return "<optgroup label='$label'>" . implode("", array_map(function($post) use ($selected){
-            $selected_attr = $post->ID == $selected ? 'selected' : '';
-            return "<option value='{$post->ID}' $selected_attr>{$post->post_title}</option>";
-        }, $posts)) . "</optgroup>" ;
-    }
 
 
     public function init(){
@@ -395,13 +392,22 @@ class SlickCarousel{
         wp_register_style('carousel-admin-css', $this->dir_url.'css/slick-carousel-admin.css');
     }
 
+    private function generate_options_group($label, $selected, $args){
+        $posts = get_posts($args);
+        if(sizeof($posts) == 0) return "";
+        return "<optgroup label='$label'>" . implode("", array_map(function($post) use ($selected){
+            $selected_attr = $post->ID == $selected ? 'selected' : '';
+            return "<option value='{$post->ID}' $selected_attr>{$post->post_title}</option>";
+        }, $posts)) . "</optgroup>" ;
+    }
+
     public function add_admin_page(){
         add_theme_page('Carousel Options', 'Carousel Options', 'edit_theme_options', $this->admin_page_slug, array($this,'slick_carousel_admin_content'));
     }
 
     public function register_image_sizes(){
-        add_image_size('slick-carousel-display', 350, 600);
-        add_image_size('slick-carousel-admin-preview', 175, 300);
+        add_image_size('slick-carousel-display', 350, 600, true);
+        add_image_size('slick-carousel-admin-preview', 175, 300, true);
     }
 
     public function slick_carousel_admin_content(){
@@ -413,9 +419,9 @@ class SlickCarousel{
         echo '<h1>Carousel Customization Options</h1>' ;
         echo '<h2 class="nav-tab-wrapper">';
         
-        $responsive_enabled = get_option($this->option_prefix.$this->responsive_option['option_name'].'-cf');
+        $responsive_enabled = get_option($this->option_prefix.$this->responsive_option['option_name'].'-lg');
         foreach($this->tabs as $key => $title){
-            if(!$responsive_enabled && !in_array($key, array('cf', 'lg'), true)){
+            if(!$responsive_enabled && !in_array($key, array('pv', 'cf', 'lg'), true)){
                 continue;
             } 
             $class = 'nav-tab';
@@ -424,47 +430,101 @@ class SlickCarousel{
         }
         echo '</h2>';
 
-        echo '<form action="options.php" method="POST">';
+        if(!in_array($active_tab, array('pv','cf'))){
+            echo '<form action="options.php" method="POST">';
             settings_fields($this->option_prefix.'tab-'.$active_tab);
             submit_button();
-            do_settings_sections($this->option_prefix.'tab-'.$active_tab);
+        }
+        do_settings_sections($this->option_prefix.'tab-'.$active_tab);
+        if(!in_array($active_tab, array('pv','cf'))){
             submit_button();
-        echo '</form>';
+            echo '</form>';
+        }
     }
 
     public function configure_options(){
-        //the settings section for enabling the other tabs for responsive design settings
+        //the preview section
         add_settings_section(
-            $this->option_prefix.'section-responsive',
-            $this->responsive_option['title'],
-            function(){},
-            $this->option_prefix.'tab-cf'
-        ); 
-
-        add_settings_field(
-            $this->option_prefix.$this->responsive_option['option_name'].'-cf',
-            $this->responsive_option['title'],
-            array($this, 'generic_input_callback'),
-            $this->option_prefix.'tab-cf',
-            $this->option_prefix.'section-responsive',
-            $this->responsive_option
+            $this->option_prefix.'section-preview',
+            'Carousel Preview',
+            array($this, 'output_admin_preview'),
+            $this->option_prefix.'tab-pv'
         );
 
-        //register the only setting in the group
-        register_setting(
-            $this->option_prefix.'tab-cf',
-            $this->option_prefix.$this->responsive_option['option_name'].'-cf'
-        );
-
-
-        //#region - the settings section for uploading images
+        //the settings section for uploading images
         add_settings_section(
             $this->option_prefix.'section-images',
             'Image upload and configuration',
             array($this, 'output_section_images_configs_for_admin'),
             $this->option_prefix.'tab-cf'
         );
-        //#endregion
+
+        //tabs
+        //the settings section for enabling the other tabs for responsive design settings
+        add_settings_section(
+            $this->option_prefix.'section-responsive',
+            $this->responsive_option['title'],
+            function(){},
+            $this->option_prefix.'tab-lg'
+        ); 
+
+        add_settings_field(
+            $this->option_prefix.$this->responsive_option['option_name'].'-lg',
+            $this->responsive_option['title'],
+            array($this, 'generic_input_callback'),
+            $this->option_prefix.'tab-lg',
+            $this->option_prefix.'section-responsive',
+            $this->responsive_option
+        );
+
+        //register the only setting in the group
+        register_setting(
+            $this->option_prefix.'tab-lg',
+            $this->option_prefix.$this->responsive_option['option_name'].'-lg'
+        );
+
+
+        foreach(array_slice($this->tabs, 2, 4, true) as $suffix => $title){
+            add_settings_section(
+                $this->option_prefix."section-$suffix",
+                '',
+                array($this, "section_header_$suffix"),
+                $this->option_prefix."tab-$suffix" 
+            );
+
+
+            foreach($this->carousel_options as $option){
+                $option['suffix'] = $suffix;
+                add_settings_field(
+                    $this->option_prefix."{$option['option_name']}-$suffix",
+                    $option['title'],
+                    array($this, 'generic_input_callback'),
+                    $this->option_prefix."tab-$suffix",
+                    $this->option_prefix."section-$suffix",
+                    $option
+                );
+                register_setting(
+                    $this->option_prefix."tab-$suffix",
+                    $this->option_prefix."{$option['option_name']}-$suffix"
+                );
+            }
+        }
+    }
+
+    public function section_header_lg(){
+        echo '<h3>Full-screen and large view carousel settings</h3> <p class="description">The breakpoint for large screens is 1200 pixels</p> ';
+    }
+
+    public function section_header_md(){
+        echo '<h3>Medium view carousel settings</h3> <p class="description">The breakpoint for medium screens is 992 pixels</p> ';
+    }
+
+    public function section_header_sm(){
+        echo '<h3>Small view carousel settings</h3> <p class="description">The breakpoint for medium screens is 762 pixels</p> '; 
+    }
+
+    public function section_header_xs(){
+        echo '<h3>Small and mobile view carousel settings</h3> <p class="description">These settings apply for any screen less than 762 pixels wide.</p> ';
     }
 
     public function output_section_images_configs_for_admin(){
@@ -483,11 +543,14 @@ class SlickCarousel{
                 'numberposts' => -1,
                 'orderby' => 'date',
             ));
-            $options_string .= $this->generate_options_group('products', $el['dest_id'], array(
-                'numberposts' => -1,
-                'orderby' => 'date',
-                'post_type' => 'product'
-            ));
+            //woocommerce support
+            if( class_exists( 'WooCommerce') ){
+                $options_string .= $this->generate_options_group('products', $el['dest_id'], array(
+                    'numberposts' => -1,
+                    'orderby' => 'date',
+                    'post_type' => 'product'
+                ));
+            }
 
             $images[] = array(
                 'img_id' => $el['img_id'],
@@ -572,10 +635,9 @@ class SlickCarousel{
     }
 
     public function generic_input_callback($args){
-        if(!isset($args['suffix'])) $args['suffix'] = 'cf';
+        if(!isset($args['suffix'])) $args['suffix'] = 'lg';
         extract($args);
         $option = get_option("{$this->option_prefix}$option_name-$suffix");
-        var_dump($option);
         $option = ($option === false || (empty($option) && $type != 'checkbox')) ? $default_value : $option;
 
         $setDefaults = true;
