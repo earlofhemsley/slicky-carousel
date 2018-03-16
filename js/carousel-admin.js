@@ -102,20 +102,21 @@ jQuery(document).ready(function($){
                 .append($('<img>').attr('src', attachment.sizes['slick-carousel-admin-preview'].url))
             ;
 
-            var imageAttributes = $('<div></div>')
-                .addClass('slick-carousel-image-attributes')
-                .append($('<div></div>').append($('<button></button>').attr('type','button').addClass('slick-carousel-drop-element').text('Remove')))
-            ;
-
             var changeDestination = $('<div></div>')
                 .append($('<p></p>').text('Change the place a user will visit when clicking this image in the carousel:'))
                 .append($('<p></p>').append($('<select></select>')
                     .addClass('slick-carousel-change-destination')
+                    .prop('disabled',true)
                     .html(slickCarousel.optionsString)
                 ))
                 .append($('<p></p>').addClass('message-bin'))
             ;
-            imageAttributes.append(changeDestination);
+
+            var imageAttributes = $('<div></div>')
+                .addClass('slick-carousel-image-attributes')
+                .append(changeDestination)
+                .append($('<div></div>').append($('<button></button>').attr('type','button').addClass('slick-carousel-drop-element').text('Remove this image')))
+            ;
 
             rootElement.append(imageContainer);
             rootElement.append(imageAttributes);
@@ -132,7 +133,10 @@ jQuery(document).ready(function($){
                 error : function(xhr, textStatus, error){
                     rootElement.remove();
                     window.alert("An error has occured: " + textStatus);
-                }             
+                },
+                success : function(){
+                    changeDestination.find('select').prop('disabled',false);
+                }
             });
         });
 

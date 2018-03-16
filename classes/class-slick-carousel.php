@@ -354,16 +354,12 @@ class SlickCarousel{
             'orderby' => 'date',
         ));
         //woocommerce support
-        if( class_exists('WooCommerce') ){
-            $this->options_string .= $this->generate_options_group('products', null, array(
-                'numberposts' => -1,
-                'orderby' => 'date',
-                'post_type' => 'product'
-            ));
-        }
+        $this->options_string .= $this->generate_options_group('products', null, array(
+            'numberposts' => -1,
+            'orderby' => 'date',
+            'post_type' => 'product'
+        ));
     }
-
-
 
     public function init(){
         add_action('admin_menu', array($this, 'add_admin_page'));
@@ -544,13 +540,11 @@ class SlickCarousel{
                 'orderby' => 'date',
             ));
             //woocommerce support
-            if( class_exists( 'WooCommerce') ){
-                $options_string .= $this->generate_options_group('products', $el['dest_id'], array(
-                    'numberposts' => -1,
-                    'orderby' => 'date',
-                    'post_type' => 'product'
-                ));
-            }
+            $options_string .= $this->generate_options_group('products', $el['dest_id'], array(
+                'numberposts' => -1,
+                'orderby' => 'date',
+                'post_type' => 'product'
+            ));
 
             $images[] = array(
                 'img_id' => $el['img_id'],
