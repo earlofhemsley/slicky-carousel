@@ -11,8 +11,8 @@
 
 require_once('classes/class-slick-carousel.php');
 
-$obj = new SlickCarousel(plugin_dir_path(__FILE__), plugin_dir_url(__FILE__));
-$obj->init();
+$obj = new Slick_Carousel();
+$obj->init(plugin_dir_path(__FILE__), plugin_dir_url(__FILE__));
 
 
 ?>

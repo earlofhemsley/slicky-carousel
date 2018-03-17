@@ -1,7 +1,6 @@
 <?php
 
-//class SlickCarousel extends WP_Widget{
-class SlickCarousel{
+class Slick_Carousel extends WP_Widget{
 
     private $carousel_options = array(
         array(
@@ -340,13 +339,12 @@ class SlickCarousel{
 
     private $option_prefix = "slick-carousel-";
     private $admin_page_slug = 'slick-carousel';
+    private $available_themes = array('light','dark');
     private $dir_path;
     private $dir_url;
     private $options_string;
 
-    public function __construct($dir_path, $dir_url){
-        $this->dir_path = $dir_path;
-        $this->dir_url = $dir_url;
+    public function __construct(){
 
         $this->options_string = "<optgroup><option value='-1'>Nowhere</option></optgroup>";
         $this->options_string .= $this->generate_options_group('posts', null, array(
@@ -359,21 +357,35 @@ class SlickCarousel{
             'orderby' => 'date',
             'post_type' => 'product'
         ));
+        parent::__construct('slick-carousel', 'Slick Carousel', array(
+            'description' => 'The visual representation of the Slick Carousel configured Carousel Options page'
+        ));
     }
 
-    public function init(){
+    public function init($dir_path, $dir_url){
+        $this->dir_path = $dir_path;
+        $this->dir_url = $dir_url;
         add_action('admin_menu', array($this, 'add_admin_page'));
         add_action('admin_init', array($this, 'configure_options'));
         add_action('admin_enqueue_scripts', array($this, 'register_scripts'));
         add_action('after_setup_theme', array($this, 'register_image_sizes'));
+        
         add_action('wp_ajax_slick_carousel_add_image', array($this, 'add_image'));
         add_action('wp_ajax_slick_carousel_drop_image', array($this, 'drop_image'));
         add_action('wp_ajax_slick_carousel_update_destination', array($this, 'change_destination'));
+
+        add_action('widgets_init', function(){ register_widget('Slick_Carousel'); });
         
         add_filter('wp_prepare_attachment_for_js', array($this, 'prepare_attachments'),10,3);
     }
 
     public function register_scripts(){
+        //slick script / style
+        wp_register_script('slick-js', $this->dir_url.'/slick/slick.min.js', array('jquery'), '1.8', true);
+        wp_register_style('slick-css', $this->dir_url.'/slick/slick.css', array(), '1.8', 'screen');
+        wp_register_style('slick-css-theme', $this->dir_url.'/slick/slick-theme.css', array(), '1.8', 'screen');
+
+        //my scripts
         wp_register_script('carousel-admin-js', $this->dir_url.'js/carousel-admin.js', array('jquery'), false, true); 
         wp_localize_script('carousel-admin-js', 'slickCarousel', 
             array(
@@ -385,7 +397,56 @@ class SlickCarousel{
             )
         );
 
+        wp_register_script('carousel-render-js', $this->dir_url.'js/carousel-render.js', array('jquery','slick-js'), false, true);
+        $responsive_enabled = '1' === get_option($this->option_prefix.$this->responsive_option['option_name'].'-lg', '0');
+        error_log(var_export($responsive_enabled, true));
+
+
+        $slick_settings = array();
+        $this->parse_carousel_options($slick_settings, 'lg');
+        //foreach($this->carousel_options as $option){
+        //    $db_setting = get_option($this->option_prefix."{$option['option_name']}-lg", null);
+        //    if($option['type'] == 'checkbox') $db_setting = $db_setting === '1';
+        //    if($db_setting != null) $slick_settings[$option['option_name']] = $db_setting;
+        //}
+
+        if($responsive_enabled){
+            //TODO: fix this mess
+            $responsive_settings = array();
+            foreach(array('md','sm','xs') as $suffix){
+                error_log($suffix);
+                $size_setting = array();
+                $size_setting['breakpoint'] = ($suffix == 'md') ? 1200 : ($suffix == 'sm') ? 992 : 768; 
+                $size_setting['settings'] = array();
+                $this->parse_carousel_options($size_setting['settings'], $suffix);
+
+                //foreach($this->carousel_options as $option){
+                //    $db_setting = get_option($this->option_prefix."{$option['option_name']}-$suffix", null);
+                //    if($option['type'] == 'checkbox') $db_setting = $db_setting === '1';
+                //    if($db_setting != null || $db_setting == $option['default_value']) 
+                //        $size_setting['settings'][$option['option_name']] = $db_setting;
+                //}
+                array_push($responsive_settings, $size_setting);
+            }
+            $slick_settings['responsive'] = $responsive_settings;
+        }
+
+        wp_localize_script('carousel-render-js', 'slickSettings', array('all' => $slick_settings));
+
         wp_register_style('carousel-admin-css', $this->dir_url.'css/slick-carousel-admin.css');
+    }
+
+    private function parse_carousel_options(&$arr, $suffix){
+        if(!is_array($arr) || empty($suffix)) 
+            throw new Exception('Invalid parameters passed to Slick_Carousel::parse_carousel_options');
+        foreach($this->carousel_options as $option){
+            $db_setting = get_option($this->option_prefix."{$option['option_name']}-$suffix", null);
+            if($db_setting != $option['default_value']) {
+                if($option['type'] == 'checkbox') $db_setting = $db_setting === '1';
+                    $arr[$option['option_name']] = $db_setting;
+            }
+        }
+    
     }
 
     private function generate_options_group($label, $selected, $args){
@@ -521,6 +582,14 @@ class SlickCarousel{
 
     public function section_header_xs(){
         echo '<h3>Small and mobile view carousel settings</h3> <p class="description">These settings apply for any screen less than 762 pixels wide.</p> ';
+    }
+
+    public function output_admin_preview(){
+        $args = array(
+            'before_widget' => '<div class="slick-carousel-widget" style="width:50%;margin:auto;">',
+            'after_widget' => '</div>'
+        );
+        $this->widget($args, array('container_width' => "100%", 'theme' => 'dark'));
     }
 
     public function output_section_images_configs_for_admin(){
@@ -666,6 +735,91 @@ EOT;
 EOT;
         } 
     
+    }
+
+    //the following functions are for widget output and integration
+    
+    public function form($instance){
+        $admin_url = admin_url("themes.php?page=slick-carousel");
+        echo "<p>For all settings other than container width and theme, please visit the <a href='$admin_url'>carousel settings page</a></p>";
+        if(!isset($instance['container_width'])) $instance['container_width'] = "100%";
+        if(!isset($instance['theme'])) $instance['theme'] = $this->available_themes[0];
+        $selected_theme = $instance['theme'];
+        //outputting this form will require object methods, so can't template without doing major gymnastics
+        $theme_opts = implode("\r\n",array_map(function($theme) use ($selected_theme){ 
+            $selected = $selected_theme == $theme ? 'selected' : '';
+            return "<option $selected>$theme</option>"; 
+        }, $this->available_themes));
+
+        if(isset($instance['errors'])){
+            foreach($instance['errors'] as $error){
+                echo "<div class='notice notice-error'><p>$error</p></div>";
+            }
+        }
+
+        echo "<p>
+                <label for='{$this->get_field_id('container_width')}'>Container Width (px or %)</label>
+                <input 
+                    id='{$this->get_field_id('container_width')}'
+                    name='{$this->get_field_name('container_width')}'
+                    type='text'
+                    value='{$instance['container_width']}'
+                />
+            </p>
+            <p>
+                <label for='{$this->get_field_id('theme')}'>Theme</label>
+                <select id='{$this->get_field_id('theme')}' name='{$this->get_field_name('theme')}'>
+                    $theme_opts
+                </select>
+            </p>
+        ";
+    }
+    
+    public function update($new_instance, $old_instance){
+        $sanitized_instance = array('errors' => array());
+        
+        $valid_width = preg_match("/^\d+(px|%)$/", $new_instance['container_width']);
+
+        if($valid_width){
+            $sanitized_instance['container_width'] = $new_instance['container_width'];
+        } else {
+            $sanitized_instance['container_width'] = $old_instance['container_width'];
+            $sanitized_instance['errors'][] = "Invalid width entered";
+        }
+
+        $sanitized_instance['theme'] = $new_instance['theme'];
+
+        return $sanitized_instance;
+    }
+
+    public function widget($args, $instance){
+        //per-instance settings: 
+        //width
+        //no titles are output either
+        wp_enqueue_script('slick-js');
+        wp_enqueue_style('slick-css');
+
+        //TODO: enqueue style based on option selected
+        wp_enqueue_style('slick-css-theme');
+        wp_enqueue_script('carousel-render-js');
+
+        echo $args['before_widget']; 
+
+        $elements = get_option($this->option_prefix.'elements');
+        
+        echo '<div style="width:'.$instance['container_width'].';" class="slick-carousel-wrapper">';
+
+        foreach($elements as $element){
+            $image_src = wp_get_attachment_image_src($element['img_id'], 'slick-carousel-display');
+            $href = $element['dest_id'] == -1 ? "#" : get_post_permalink($element['dest_id']);
+            require $this->dir_path.'templates/slick-element.php';
+
+        }
+
+        echo '</div>';
+
+        echo $args['after_widget']; 
+
     }
 
 
