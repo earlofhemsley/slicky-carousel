@@ -2,6 +2,7 @@
 
 class Slick_Carousel extends WP_Widget{
 
+    //if I was going to do this again, I'd make a class with these values as properties instead of a huge array
     private $carousel_options = array(
         array(
             'title' => 'Accessibility',
@@ -327,7 +328,6 @@ class Slick_Carousel extends WP_Widget{
         'type' => 'checkbox',
     );
 
-
     private $tabs = array(
         'pv' => 'Preview',
         'cf' => 'Image Configuration',
@@ -339,14 +339,13 @@ class Slick_Carousel extends WP_Widget{
 
     private $option_prefix = "slick-carousel-";
     private $admin_page_slug = 'slick-carousel';
-    private $available_themes = array('light','dark');
     private $available_sizes = array('large','small');
     private $dir_path;
     private $dir_url;
     private $options_string;
 
+    //basic object setup
     public function __construct(){
-
         $this->options_string = "<optgroup><option value='-1'>Nowhere</option></optgroup>";
         $this->options_string .= $this->generate_options_group('posts', null, array(
             'numberposts' => -1,
@@ -365,12 +364,8 @@ class Slick_Carousel extends WP_Widget{
         $this->dir_url = plugin_dir_url(__FILE__) . '../';
     }
 
-    //public function init($dir_path, $dir_url){
-    //    $this->dir_path = $dir_path;
-    //    $this->dir_url = $dir_url;
+    //register all the hooks
     public function init(){
-        error_log("init dirpath: {$this->dir_path}");
-
         add_action('admin_menu', array($this, 'add_admin_page'));
         add_action('admin_init', array($this, 'configure_options'));
         add_action('admin_enqueue_scripts', array($this, 'register_scripts'));
@@ -386,13 +381,14 @@ class Slick_Carousel extends WP_Widget{
         add_filter('wp_prepare_attachment_for_js', array($this, 'prepare_attachments'),10,3);
     }
 
+    //sets up all the scripts and styles, including front end variable localization
     public function register_scripts(){
         //slick script / style
-        wp_register_script('slick-js', $this->dir_url.'/slick/slick.min.js', array('jquery'), '1.8', true);
-        wp_register_style('slick-css', $this->dir_url.'/slick/slick.css', array(), '1.8', 'screen');
-        wp_register_style('slick-css-theme', $this->dir_url.'/slick/slick-theme.css', array(), '1.8', 'screen');
+        wp_register_script('slick-js', $this->dir_url.'slick/slick.min.js', array('jquery'), '1.8', true);
+        wp_register_style('slick-css', $this->dir_url.'slick/slick.css', array(), '1.8', 'screen');
+        wp_register_style('slick-css-theme', $this->dir_url.'slick/slick-theme.css', array(), '1.8', 'screen');
 
-        //my scripts
+        //panel scripts
         wp_register_script('carousel-admin-js', $this->dir_url.'js/carousel-admin.js', array('jquery'), false, true); 
         wp_localize_script('carousel-admin-js', 'slickCarousel', 
             array(
@@ -403,7 +399,17 @@ class Slick_Carousel extends WP_Widget{
                 'changeDestinationAction' => 'slick_carousel_update_destination'
             )
         );
+        error_log('at least got to this point');
 
+        //wp color picker
+        if(is_admin()){
+            wp_enqueue_script('wp-color-picker');
+            wp_enqueue_script('carousel-widget-js', $this->dir_url.'js/carousel-widget.js', array('jquery','wp-color-picker'), false, true);
+            wp_enqueue_style('wp-color-picker');
+        }
+
+
+        //render scripts
         wp_register_script('carousel-render-js', $this->dir_url.'js/carousel-render.js', array('jquery','slick-js'), false, true);
         $responsive_enabled = '1' === get_option($this->option_prefix.$this->responsive_option['option_name'].'-lg', '0');
 
@@ -423,13 +429,13 @@ class Slick_Carousel extends WP_Widget{
             $slick_settings['responsive'] = $responsive_settings;
         }
 
-        error_log("final object: " . var_export($slick_settings, true));
-
         wp_localize_script('carousel-render-js', 'slickSettings', array('all' => $slick_settings));
 
         wp_register_style('carousel-admin-css', $this->dir_url.'css/slick-carousel-admin.css');
     }
 
+
+    //parses saved option values for rendering an object in wp_localize_script
     private function parse_carousel_options(&$arr, $suffix, $output_default = false){
         if(!is_array($arr) || empty($suffix)) 
             throw new Exception('Invalid parameters passed to Slick_Carousel::parse_carousel_options');
@@ -463,6 +469,8 @@ class Slick_Carousel extends WP_Widget{
     
     }
 
+    //utility function: generate an options string for a select input, 
+    //used when generating the ui for the image upload admin
     private function generate_options_group($label, $selected, $args){
         $posts = get_posts($args);
         if(sizeof($posts) == 0) return "";
@@ -472,15 +480,18 @@ class Slick_Carousel extends WP_Widget{
         }, $posts)) . "</optgroup>" ;
     }
 
+    //put the admin page in the admin
     public function add_admin_page(){
         add_theme_page('Carousel Options', 'Carousel Options', 'edit_theme_options', $this->admin_page_slug, array($this,'slick_carousel_admin_content'));
     }
 
+    //register images
     public function register_image_sizes(){
         add_image_size('slick-carousel-display', 350, 600, true);
         add_image_size('slick-carousel-admin-preview', 175, 300, true);
     }
 
+    //output html for the admin panel, calling settings api functions
     public function slick_carousel_admin_content(){
         if(!current_user_can('edit_theme_options')){
             wp_die(__('You do not have permission to access this page', 'sewchic'));
@@ -513,6 +524,7 @@ class Slick_Carousel extends WP_Widget{
         }
     }
 
+    //settings api setup for the admin panel
     public function configure_options(){
         //the preview section
         add_settings_section(
@@ -582,6 +594,7 @@ class Slick_Carousel extends WP_Widget{
         }
     }
 
+    //header callback functions for the different size tags
     public function section_header_lg(){
         echo '<h3>Full-screen and large view carousel settings</h3> <p class="description">The breakpoint for large screens is 1200 pixels</p> ';
     }
@@ -598,6 +611,7 @@ class Slick_Carousel extends WP_Widget{
         echo '<h3>Small and mobile view carousel settings</h3> <p class="description">These settings apply for any screen less than 762 pixels wide.</p> ';
     }
 
+    //output a vanilla preview of the carousel
     public function output_admin_preview(){
         $args = array(
             'before_widget' => '<div class="slick-carousel-widget" style="width:50%;margin:auto;">',
@@ -606,6 +620,7 @@ class Slick_Carousel extends WP_Widget{
         $this->widget($args, array('container_width' => "100%", 'theme' => 'dark'));
     }
 
+    //output the ui for adding images
     public function output_section_images_configs_for_admin(){
         wp_enqueue_media();
         wp_enqueue_script('carousel-admin-js');
@@ -639,6 +654,7 @@ class Slick_Carousel extends WP_Widget{
         require_once $this->dir_path.'/templates/admin-config.php';
     }
 
+    //ajax function for adding a new carousel image
     public function add_image(){
         //receives: img id
         //sets initial dest id to -1 (for nothing)
@@ -658,7 +674,8 @@ class Slick_Carousel extends WP_Widget{
         
         wp_die();
     }
-
+    
+    //ajax function for deleting a carousel item
     public function drop_image(){
         extract($_POST);
         error_log("received index to drop: $index");
@@ -677,6 +694,7 @@ class Slick_Carousel extends WP_Widget{
         wp_die();
     }
 
+    //ajax function for changing where a carousel item goes
     public function change_destination(){
         extract($_POST); //index and dest
         $elements = get_option($this->option_prefix.'elements', array());
@@ -692,6 +710,7 @@ class Slick_Carousel extends WP_Widget{
         wp_die();
     }
 
+    //this makes the admin preview image size available to the wp.media object
     public function prepare_attachments($response, $attachment, $meta){
         $size = 'slick-carousel-admin-preview';
         
@@ -757,16 +776,11 @@ EOT;
         $admin_url = admin_url("themes.php?page=slick-carousel");
         echo "<p>For all settings other than container width, theme, and size, please visit the <a href='$admin_url'>carousel settings page</a></p>";
         if(!isset($instance['container_width'])) $instance['container_width'] = "100%";
-        if(!isset($instance['theme'])) $instance['theme'] = $this->available_themes[0];
+        if(!isset($instance['arrow_color'])) $instance['arrow_color'] = '#ffffff';
         if(!isset($instance['size'])) $instance['size'] = $this->available_sizes[0];
-        $selected_theme = $instance['theme'];
         $selected_size = $instance['size'];
 
         //outputting this form will require object methods, so can't template without doing major gymnastics
-        $theme_opts = implode("\r\n",array_map(function($theme) use ($selected_theme){ 
-            $selected = $selected_theme == $theme ? 'selected' : '';
-            return "<option $selected>$theme</option>"; 
-        }, $this->available_themes));
         $size_opts = implode("\r\n",array_map(function($size) use ($selected_size){ 
             $selected = $selected_size == $size ? 'selected' : '';
             return "<option $selected>$size</option>"; 
@@ -779,7 +793,7 @@ EOT;
         }
 
         echo "<p>
-                <label for='{$this->get_field_id('container_width')}'>Container Width (px or %)</label>
+                <label for='{$this->get_field_id('container_width')}'>Container Width (px or %)</label><br/>
                 <input 
                     id='{$this->get_field_id('container_width')}'
                     name='{$this->get_field_name('container_width')}'
@@ -788,10 +802,14 @@ EOT;
                 />
             </p>
             <p>
-                <label for='{$this->get_field_id('theme')}'>Theme</label>
-                <select id='{$this->get_field_id('theme')}' name='{$this->get_field_name('theme')}'>
-                    $theme_opts
-                </select>
+                <label for='{$this->get_field_id('arrow_color')}'>Arrow Color</label>
+                <input 
+                    id='{$this->get_field_id('arrow_color')}' 
+                    name='{$this->get_field_name('arrow_color')}'
+                    class='slick-carousel-color-picker'
+                    value='{$instance['arrow_color']}'
+                    type='text'
+                />
             </p>
             <p>
                 <label for='{$this->get_field_id('size')}'>Size</label>
@@ -806,30 +824,49 @@ EOT;
         $sanitized_instance = array('errors' => array());
         
         $valid_width = preg_match("/^\d+(px|%)$/", $new_instance['container_width']);
+        $valid_color = preg_match("/^#[0-9a-fA-F]{6}$/", $new_instance['arrow_color']);
+        $valid_size = in_array($new_instance['size'], $this->available_sizes);
 
-        if($valid_width){
-            $sanitized_instance['container_width'] = $new_instance['container_width'];
-        } else {
-            $sanitized_instance['container_width'] = $old_instance['container_width'];
-            $sanitized_instance['errors'][] = "Invalid width entered";
-        }
+        $this->validate_widget_selection($valid_width, $new_instance, $old_instance, $sanitized_instance, 'container_width', 'Invalid width entered');
+        $this->validate_widget_selection($valid_color, $new_instance, $old_instance, $sanitized_instance, 'arrow_color', 'Invalid arrow color entered');
+        $this->validate_widget_selection($valid_size, $new_instance, $old_instance, $sanitized_instance, 'size', 'Invalid size entered');
 
-        $sanitized_instance['theme'] = $new_instance['theme'];
-        $sanitized_instance['size'] = $new_instance['size'];
+        error_log('final: '. var_export($sanitized_instance, true));
 
         return $sanitized_instance;
+    }
+
+    private function validate_widget_selection($is_valid, $new_array, $old_array, &$dest_array, $index, $error_msg ){
+        error_log($index);
+        if($is_valid){
+            error_log('is valid');
+            $dest_array[$index] = $new_array[$index];
+        } else {
+            error_log('is not valid');
+            $dest_array[$index] = $old_array[$index];
+            $dest_array['errors'][] = $error_msg;
+        }
+
     }
 
     public function widget($args, $instance){
         //per-instance settings: 
         //width
-        //no titles are output either
+        //arrow_color
+        //size (large or small)
         wp_enqueue_script('slick-js');
         wp_enqueue_style('slick-css');
 
-        //TODO: enqueue style based on option selected
         wp_enqueue_style('slick-css-theme');
         wp_enqueue_script('carousel-render-js');
+
+        //change color based on selection
+        $inline_css = <<< EOT
+            .slick-prev:before, .slick-next:before{
+                color: {$instance['arrow_color']} !important;     
+            }
+EOT;
+        wp_add_inline_style('slick-css-theme',$inline_css);
 
         $size = $instance['size'] == 'large' ? 'slick-carousel-display' : 'slick-carousel-admin-preview';
 
@@ -842,9 +879,7 @@ EOT;
         foreach($elements as $element){
             $image_src = wp_get_attachment_image_src($element['img_id'], $size);
             $href = $element['dest_id'] == -1 ? "#" : get_post_permalink($element['dest_id']);
-            error_log("dirpath: {$this->dir_path}");
             require $this->dir_path.'templates/slick-element.php';
-
         }
 
         echo '</div>';

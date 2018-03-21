@@ -13,5 +13,4 @@ require_once('classes/class-slick-carousel.php');
 $obj = new Slick_Carousel();
 $obj->init();
 
-
 ?>
