@@ -617,7 +617,7 @@ class Slick_Carousel extends WP_Widget{
             'before_widget' => '<div class="slick-carousel-widget" style="width:50%;margin:auto;">',
             'after_widget' => '</div>'
         );
-        $this->widget($args, array('container_width' => "100%", 'theme' => 'dark'));
+        $this->widget($args, array('container_width' => "100%", 'arrow_color' => '#000000', 'size' => 'large'));
     }
 
     //output the ui for adding images
