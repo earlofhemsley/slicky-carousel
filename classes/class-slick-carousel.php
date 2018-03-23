@@ -342,21 +342,9 @@ class Slick_Carousel extends WP_Widget{
     private $breakpoints = array('786px', '992px', '1200px', 'all screens');
     private $dir_path;
     private $dir_url;
-    private $options_string;
 
     //basic object setup
     public function __construct(){
-        $this->options_string = "<optgroup><option value='-1'>Nowhere</option></optgroup>";
-        $this->options_string .= $this->generate_options_group('posts', null, array(
-            'numberposts' => -1,
-            'orderby' => 'date',
-        ));
-        //woocommerce support
-        $this->options_string .= $this->generate_options_group('products', null, array(
-            'numberposts' => -1,
-            'orderby' => 'date',
-            'post_type' => 'product'
-        ));
         parent::__construct('slick-carousel', 'Slick Carousel', array(
             'description' => 'The visual representation of the Slick Carousel configured Carousel Options page'
         ));
@@ -389,11 +377,24 @@ class Slick_Carousel extends WP_Widget{
         wp_register_style('slick-css-theme', $this->dir_url.'slick/slick-theme.css', array(), '1.8', 'screen');
         wp_register_style('slick-carousel-display-css', $this->dir_url.'css/slick-carousel-display.css', array(), false, 'screen');
 
+        //generic options string for the admin images ui
+        $generic_options_string = "<optgroup><option value='-1'>Nowhere</option></optgroup>";
+        $generic_options_string .= $this->generate_options_group('posts', null, array(
+            'numberposts' => -1,
+            'orderby' => 'date',
+        ));
+        //woocommerce support
+        $generic_options_string .= $this->generate_options_group('products', null, array(
+            'numberposts' => -1,
+            'orderby' => 'date',
+            'post_type' => 'product'
+        ));
+        
         //panel scripts
         wp_register_script('carousel-admin-js', $this->dir_url.'js/carousel-admin.js', array('jquery'), false, true); 
         wp_localize_script('carousel-admin-js', 'slickCarousel', 
             array(
-                'optionsString' => $this->options_string,
+                'optionsString' => $generic_options_string,
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'addAction' => 'slick_carousel_add_image',
                 'dropAction' => 'slick_carousel_drop_image',
@@ -475,7 +476,7 @@ class Slick_Carousel extends WP_Widget{
         $posts = get_posts($args);
         if(sizeof($posts) == 0) return "";
         return "<optgroup label='$label'>" . implode("", array_map(function($post) use ($selected){
-            $selected_attr = $post->ID == $selected ? 'selected' : '';
+            $selected_attr = selected($post->ID, $selected, false);
             return "<option value='{$post->ID}' $selected_attr>{$post->post_title}</option>";
         }, $posts)) . "</optgroup>" ;
     }
@@ -617,7 +618,7 @@ class Slick_Carousel extends WP_Widget{
             'before_widget' => '<div class="slick-carousel-widget" style="width:50%;margin:auto;">',
             'after_widget' => '</div>'
         );
-        $this->widget($args, array('container_width' => "100%", 'arrow_color' => '#000000', 'size' => 'large'));
+        $this->widget($args, array('container_width' => "100%", 'arrow_color' => '#000000', 'breakpoint' => NULL));
     }
 
     //output the ui for adding images
@@ -915,10 +916,7 @@ EOT;
         echo '</div>';
 
         echo $args['after_widget']; 
-
     }
-
-
 }
 
 
