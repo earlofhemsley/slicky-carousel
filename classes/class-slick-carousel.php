@@ -659,17 +659,14 @@ class Slick_Carousel extends WP_Widget{
         //receives: img id
         //sets initial dest id to -1 (for nothing)
         //returns ok
-
         $elements = get_option($this->option_prefix.'elements', array());
         $elements[] = array(
             'img_id' => $_POST['attachmentId'],
             'dest_id' => -1
         ); 
-        error_log("after add_image, here's the option value: " . json_encode($elements));
         update_option($this->option_prefix.'elements', $elements);
         
         $result = array('result' => 'ok');
-        error_log('returning this to javascript '. json_encode($result));
         echo json_encode($result);
         
         wp_die();
@@ -730,6 +727,7 @@ class Slick_Carousel extends WP_Widget{
         return $response;
     }
 
+    //this function outputs input elements for the admin tabs
     public function generic_input_callback($args){
         if(!isset($args['suffix'])) $args['suffix'] = 'lg';
         extract($args);
@@ -773,6 +771,7 @@ EOT;
     //the following functions are for widget output and integration
     
     public function form($instance){
+        //TODO:carousel alignment (left, right, center)
         $admin_url = admin_url("themes.php?page=slick-carousel");
         echo "<p>For all settings other than container width, theme, and size, please visit the <a href='$admin_url'>carousel settings page</a></p>";
         if(!isset($instance['container_width'])) $instance['container_width'] = "100%";
@@ -892,7 +891,7 @@ EOT;
         if($instance['breakpoint'] == 'all screens') $instance['breakpoint'] = '9999px';
         $inline_custom_css = <<< EOT
             @media screen and (max-width: {$instance['breakpoint']}){
-                .slick-carousel-wrapper div, .slick-carousel-wrapper img{
+                #slick_carousel_wrapper_{$this->number} > div, .slick-carousel-wrapper img{
                     width: 175px;
                 }
             }
@@ -905,7 +904,7 @@ EOT;
 
         $elements = get_option($this->option_prefix.'elements');
         
-        echo '<div style="width:'.$instance['container_width'].';margin:auto;" class="slick-carousel-wrapper">';
+        echo '<div style="width:'.$instance['container_width'].';margin:auto;" class="slick-carousel-wrapper" id="slick_carousel_wrapper_'.$this->number.'">';
 
         foreach($elements as $element){
             $image_src = wp_get_attachment_image_src($element['img_id'], 'slick-carousel-display');
