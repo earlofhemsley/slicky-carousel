@@ -339,7 +339,7 @@ class Slick_Carousel extends WP_Widget{
 
     private $option_prefix = "slick-carousel-";
     private $admin_page_slug = 'slick-carousel';
-    private $available_sizes = array('large','small');
+    private $breakpoints = array('786px', '992px', '1200px', 'all screens');
     private $dir_path;
     private $dir_url;
     private $options_string;
@@ -387,6 +387,7 @@ class Slick_Carousel extends WP_Widget{
         wp_register_script('slick-js', $this->dir_url.'slick/slick.min.js', array('jquery'), '1.8', true);
         wp_register_style('slick-css', $this->dir_url.'slick/slick.css', array(), '1.8', 'screen');
         wp_register_style('slick-css-theme', $this->dir_url.'slick/slick-theme.css', array(), '1.8', 'screen');
+        wp_register_style('slick-carousel-display-css', $this->dir_url.'css/slick-carousel-display.css', array(), false, 'screen');
 
         //panel scripts
         wp_register_script('carousel-admin-js', $this->dir_url.'js/carousel-admin.js', array('jquery'), false, true); 
@@ -399,7 +400,6 @@ class Slick_Carousel extends WP_Widget{
                 'changeDestinationAction' => 'slick_carousel_update_destination'
             )
         );
-        error_log('at least got to this point');
 
         //wp color picker
         if(is_admin()){
@@ -777,14 +777,19 @@ EOT;
         echo "<p>For all settings other than container width, theme, and size, please visit the <a href='$admin_url'>carousel settings page</a></p>";
         if(!isset($instance['container_width'])) $instance['container_width'] = "100%";
         if(!isset($instance['arrow_color'])) $instance['arrow_color'] = '#ffffff';
-        if(!isset($instance['size'])) $instance['size'] = $this->available_sizes[0];
-        $selected_size = $instance['size'];
+        if(!isset($instance['responsive'])) $instance['responsive'] = 'off';
+        if(!isset($instance['breakpoint'])) $instance['breakpoint'] = $this->breakpoints[0];
+
+        $selected_bkpt = $instance['breakpoint'];
+        $responsive_checked = checked($instance['responsive'], 'on', false);
+        $breakpoint_disabled = $instance['responsive'] != 'on' ? 'disabled' : '';
+        $breakpoint_display = $instance['responsive'] != 'on' ? 'style="display:none;"' : '';
+
 
         //outputting this form will require object methods, so can't template without doing major gymnastics
-        $size_opts = implode("\r\n",array_map(function($size) use ($selected_size){ 
-            $selected = $selected_size == $size ? 'selected' : '';
-            return "<option $selected>$size</option>"; 
-        }, $this->available_sizes));
+        $breakpoint_opts = implode("\r\n",array_map(function($bkpt) use ($selected_bkpt){ 
+            return "<option ".selected($bkpt, $selected_bkpt, false).">$bkpt</option>"; 
+        }, $this->breakpoints));
 
         if(isset($instance['errors'])){
             foreach($instance['errors'] as $error){
@@ -812,9 +817,20 @@ EOT;
                 />
             </p>
             <p>
-                <label for='{$this->get_field_id('size')}'>Size</label>
-                <select id='{$this->get_field_id('size')}' name='{$this->get_field_name('size')}'>
-                    $size_opts
+                <label for='{$this->get_field_id('responsive')}'>
+                    <input 
+                        id='{$this->get_field_id('responsive')}'
+                        name='{$this->get_field_name('responsive')}'
+                        class='slick-carousel-widget-responsive'
+                        type='checkbox'
+                        $responsive_checked
+                    />
+                Shrink images on smaller screens</label>
+            </p>
+            <p $breakpoint_display>
+                <label for='{$this->get_field_id('breakpoint')}'>Image will shrink on screens smaller than </label>
+                <select $breakpoint_disabled id='{$this->get_field_id('breakpoint')}' name='{$this->get_field_name('breakpoint')}'>
+                    $breakpoint_opts
                 </select>
             </p>
         ";
@@ -825,26 +841,32 @@ EOT;
         
         $valid_width = preg_match("/^\d+(px|%)$/", $new_instance['container_width']);
         $valid_color = preg_match("/^#[0-9a-fA-F]{6}$/", $new_instance['arrow_color']);
-        $valid_size = in_array($new_instance['size'], $this->available_sizes);
+        $valid_breakpoint = isset($new_instance['breakpoint']) && in_array($new_instance['breakpoint'], $this->breakpoints);
 
         $this->validate_widget_selection($valid_width, $new_instance, $old_instance, $sanitized_instance, 'container_width', 'Invalid width entered');
         $this->validate_widget_selection($valid_color, $new_instance, $old_instance, $sanitized_instance, 'arrow_color', 'Invalid arrow color entered');
-        $this->validate_widget_selection($valid_size, $new_instance, $old_instance, $sanitized_instance, 'size', 'Invalid size entered');
+        $this->validate_widget_selection($valid_breakpoint, $new_instance, $old_instance, $sanitized_instance, 'breakpoint', 'Invalid breakpoint selected', false);
+        
+        $sanitized_instance['responsive'] = $new_instance['responsive'];
 
         error_log('final: '. var_export($sanitized_instance, true));
+
 
         return $sanitized_instance;
     }
 
-    private function validate_widget_selection($is_valid, $new_array, $old_array, &$dest_array, $index, $error_msg ){
+    private function validate_widget_selection($is_valid, $new_array, $old_array, &$dest_array, $index, $error_msg, $required = true ){
         error_log($index);
         if($is_valid){
             error_log('is valid');
             $dest_array[$index] = $new_array[$index];
         } else {
-            error_log('is not valid');
-            $dest_array[$index] = $old_array[$index];
-            $dest_array['errors'][] = $error_msg;
+            if($required){
+                $dest_array[$index] = $old_array[$index];
+                $dest_array['errors'][] = $error_msg;
+            } else {
+                $dest_array[$index] = null;
+            }
         }
 
     }
@@ -854,30 +876,39 @@ EOT;
         //width
         //arrow_color
         //size (large or small)
-        wp_enqueue_script('slick-js');
         wp_enqueue_style('slick-css');
-
         wp_enqueue_style('slick-css-theme');
+        wp_enqueue_style('slick-carousel-display-css');
+
+        wp_enqueue_script('slick-js');
         wp_enqueue_script('carousel-render-js');
 
         //change color based on selection
-        $inline_css = <<< EOT
+        $inline_slick_css = <<< EOT
             .slick-prev:before, .slick-next:before{
                 color: {$instance['arrow_color']} !important;     
             }
 EOT;
-        wp_add_inline_style('slick-css-theme',$inline_css);
+        if($instance['breakpoint'] == 'all screens') $instance['breakpoint'] = '9999px';
+        $inline_custom_css = <<< EOT
+            @media screen and (max-width: {$instance['breakpoint']}){
+                .slick-carousel-wrapper div, .slick-carousel-wrapper img{
+                    width: 175px;
+                }
+            }
+EOT;
 
-        $size = $instance['size'] == 'large' ? 'slick-carousel-display' : 'slick-carousel-admin-preview';
+        wp_add_inline_style('slick-css-theme',$inline_slick_css);
+        wp_add_inline_style('slick-carousel-display-css',$inline_custom_css);
 
         echo $args['before_widget']; 
 
         $elements = get_option($this->option_prefix.'elements');
         
-        echo '<div style="width:'.$instance['container_width'].';" class="slick-carousel-wrapper">';
+        echo '<div style="width:'.$instance['container_width'].';margin:auto;" class="slick-carousel-wrapper">';
 
         foreach($elements as $element){
-            $image_src = wp_get_attachment_image_src($element['img_id'], $size);
+            $image_src = wp_get_attachment_image_src($element['img_id'], 'slick-carousel-display');
             $href = $element['dest_id'] == -1 ? "#" : get_post_permalink($element['dest_id']);
             require $this->dir_path.'templates/slick-element.php';
         }

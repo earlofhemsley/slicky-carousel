@@ -1,0 +1,9 @@
+.slick-carousel-wrapper > div, .slick-carousel-wrapper img{
+    width: 350px;
+    text-align:center;
+    margin:auto;
+}
+.slick-carousel-wrapper img{
+    display:inline-block;
+    vertical-align:middle;
+}
