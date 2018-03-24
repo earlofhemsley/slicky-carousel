@@ -19,11 +19,11 @@ jQuery(document).ready(function($){
         });
     }
 
-    primeActions('.slick-carousel-color-picker','.slick-carousel-widget-responsive');
+    primeActions('.slicky-carousel-color-picker','.slicky-carousel-widget-responsive');
 
     $(document).ajaxSuccess(function(ev, xhr, ajaxOptions, output){
         if(ajaxOptions.data.search("action=save-widget") != -1){
-            primeActions('.slick-carousel-color-picker','.slick-carousel-widget-responsive');
+            primeActions('.slicky-carousel-color-picker','.slicky-carousel-widget-responsive');
         }
     });
 

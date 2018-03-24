@@ -1,16 +1,14 @@
 jQuery(document).ready(function($){
     var file_frame;
 
-    //TODO: slick it up
-
-    $('#carousel_image_preview_bin').on('click', '.slick-carousel-drop-element', function(ev){
-        var element = $(this).closest('.slick-carousel-image-element');
+    $('#carousel_image_preview_bin').on('click', '.slicky-carousel-drop-element', function(ev){
+        var element = $(this).closest('.slicky-carousel-image-element');
         
         $.ajax({
-            url : slickCarousel.ajaxUrl,
+            url : slickyCarousel.ajaxUrl,
             data : {
                 index : element.data('index'),
-                action : slickCarousel.dropAction
+                action : slickyCarousel.dropAction
             },
             method: "POST",
             dataType : "json",
@@ -29,7 +27,7 @@ jQuery(document).ready(function($){
                 else {
                     element.remove();
                     var i = 0;
-                    $('.slick-carousel-image-element').each(function(){
+                    $('.slicky-carousel-image-element').each(function(){
                         $(this).data('index', i);
                         i++;
                     });
@@ -39,26 +37,29 @@ jQuery(document).ready(function($){
 
     });
 
-    $('#carousel_image_preview_bin').on('change', '.slick-carousel-change-destination', function(ev){
-        var newDestination = $(this).find(':selected').val();
-        var index = $(this).closest('.slick-carousel-image-element').data('index');
-        var bin = $(this).parent().next('.message-bin');
+    $('#carousel_image_preview_bin').on('change', '.slicky-carousel-change-destination', function(ev){
+        var dropdown = $(this);
+        var newDestination = dropdown.find(':selected').val();
+        var index = dropdown.closest('.slicky-carousel-image-element').data('index');
+        var bin = dropdown.parent().next('.message-bin');
         $.ajax({
-            url : slickCarousel.ajaxUrl,
+            url : slickyCarousel.ajaxUrl,
             method : "POST",
             dataType : "json",
             data : {
-                action : slickCarousel.changeDestinationAction,
+                action : slickyCarousel.changeDestinationAction,
                 index : index,
                 dest : newDestination
             },
             beforeSend : function(xhr){
+                dropdown.prop('disabled', true);
                 bin.text("working...");
                 //spinny wheel
             },
             success : function(data, textStatus, xhr){
                 if(data.result == "ok"){
                     bin.text("success!")
+                    dropdown.prop('disabled', false);
                     window.setTimeout(function(){bin.text('');}, 2000);
                     //checkmark
                 }
@@ -90,32 +91,32 @@ jQuery(document).ready(function($){
         file_frame.on('select', function(){
 
             var attachment = file_frame.state().get('selection').first().toJSON();
-            var index = $('.slick-carousel-image-element').length;
+            var index = $('.slicky-carousel-image-element').length;
 
             var rootElement = $('<div></div>')
-                .addClass('slick-carousel-image-element')
+                .addClass('slicky-carousel-image-element')
                 .data('index', index)
             ;
 
             var imageContainer = $('<div></div>')
-                .addClass('slick-carousel-image-container')
-                .append($('<img>').attr('src', attachment.sizes['slick-carousel-admin-preview'].url))
+                .addClass('slicky-carousel-image-container')
+                .append($('<img>').attr('src', attachment.sizes['slicky-carousel-admin-preview'].url))
             ;
 
             var changeDestination = $('<div></div>')
                 .append($('<p></p>').text('Change the place a user will visit when clicking this image in the carousel:'))
                 .append($('<p></p>').append($('<select></select>')
-                    .addClass('slick-carousel-change-destination')
+                    .addClass('slicky-carousel-change-destination')
                     .prop('disabled',true)
-                    .html(slickCarousel.optionsString)
+                    .html(slickyCarousel.optionsString)
                 ))
                 .append($('<p></p>').addClass('message-bin'))
             ;
 
             var imageAttributes = $('<div></div>')
-                .addClass('slick-carousel-image-attributes')
+                .addClass('slicky-carousel-image-attributes')
                 .append(changeDestination)
-                .append($('<div></div>').append($('<button></button>').attr('type','button').addClass('slick-carousel-drop-element').text('Remove this image')))
+                .append($('<div></div>').append($('<button></button>').attr('type','button').addClass('slicky-carousel-drop-element').text('Remove this image')))
             ;
 
             rootElement.append(imageContainer);
@@ -126,10 +127,10 @@ jQuery(document).ready(function($){
                 method: "POST",
                 data : {
                     attachmentId : attachment.id,
-                    action : slickCarousel.addAction
+                    action : slickyCarousel.addAction
                 },
                 dataType: "json",
-                url : slickCarousel.ajaxUrl,
+                url : slickyCarousel.ajaxUrl,
                 error : function(xhr, textStatus, error){
                     rootElement.remove();
                     window.alert("An error has occured: " + textStatus);

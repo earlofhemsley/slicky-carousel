@@ -1,11 +1,11 @@
-.slick-carousel-image-element{
+.slicky-carousel-image-element{
     transition: all 1s;
     -webkit-transition: all 1s;
     opacity:1;
     padding: 10px 0;
 }
 
-.slick-carousel-image-element:after{
+.slicky-carousel-image-element:after{
     content:'.';
     display:block;
     clear:both;
@@ -13,12 +13,12 @@
     height:0;
 }
 
-.slick-carousel-image-element.pending-removal{
+.slicky-carousel-image-element.pending-removal{
     background: #666;
     opacity: 0.75;
 }
 
-.slick-carousel-image-container{
+.slicky-carousel-image-container{
     width:175px;
     padding-right:10px;
     margin-right:10px;

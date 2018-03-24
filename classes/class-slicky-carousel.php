@@ -1,6 +1,6 @@
 <?php
 
-class Slick_Carousel extends WP_Widget{
+class Slicky_Carousel extends WP_Widget{
 
     //if I was going to do this again, I'd make a class with these values as properties instead of a huge array
     private $carousel_options = array(
@@ -337,15 +337,15 @@ class Slick_Carousel extends WP_Widget{
         'xs' => 'Mobile Screens'
     );
 
-    private $option_prefix = "slick-carousel-";
-    private $admin_page_slug = 'slick-carousel';
+    private $option_prefix = "slicky-carousel-";
+    private $admin_page_slug = 'slicky-carousel';
     private $breakpoints = array('786px', '992px', '1200px', 'all screens');
     private $dir_path;
     private $dir_url;
 
     //basic object setup
     public function __construct(){
-        parent::__construct('slick-carousel', 'Slick Carousel', array(
+        parent::__construct('slicky-carousel', 'Slicky Carousel', array(
             'description' => 'The visual representation of the Slick Carousel configured Carousel Options page'
         ));
         $this->dir_path = plugin_dir_path(__FILE__) . '../';
@@ -360,11 +360,11 @@ class Slick_Carousel extends WP_Widget{
         add_action('wp_enqueue_scripts', array($this, 'register_scripts'));
         add_action('after_setup_theme', array($this, 'register_image_sizes'));
         
-        add_action('wp_ajax_slick_carousel_add_image', array($this, 'add_image'));
-        add_action('wp_ajax_slick_carousel_drop_image', array($this, 'drop_image'));
-        add_action('wp_ajax_slick_carousel_update_destination', array($this, 'change_destination'));
+        add_action('wp_ajax_slicky_carousel_add_image', array($this, 'add_image'));
+        add_action('wp_ajax_slicky_carousel_drop_image', array($this, 'drop_image'));
+        add_action('wp_ajax_slicky_carousel_update_destination', array($this, 'change_destination'));
 
-        add_action('widgets_init', function(){ register_widget('Slick_Carousel'); });
+        add_action('widgets_init', function(){ register_widget('Slicky_Carousel'); });
         
         add_filter('wp_prepare_attachment_for_js', array($this, 'prepare_attachments'),10,3);
     }
@@ -375,7 +375,7 @@ class Slick_Carousel extends WP_Widget{
         wp_register_script('slick-js', $this->dir_url.'slick/slick.min.js', array('jquery'), '1.8', true);
         wp_register_style('slick-css', $this->dir_url.'slick/slick.css', array(), '1.8', 'screen');
         wp_register_style('slick-css-theme', $this->dir_url.'slick/slick-theme.css', array(), '1.8', 'screen');
-        wp_register_style('slick-carousel-display-css', $this->dir_url.'css/slick-carousel-display.css', array(), false, 'screen');
+        wp_register_style('carousel-display-css', $this->dir_url.'css/carousel-display.css', array(), false, 'screen');
 
         //generic options string for the admin images ui
         $generic_options_string = "<optgroup><option value='-1'>Nowhere</option></optgroup>";
@@ -392,13 +392,13 @@ class Slick_Carousel extends WP_Widget{
         
         //panel scripts
         wp_register_script('carousel-admin-js', $this->dir_url.'js/carousel-admin.js', array('jquery'), false, true); 
-        wp_localize_script('carousel-admin-js', 'slickCarousel', 
+        wp_localize_script('carousel-admin-js', 'slickyCarousel', 
             array(
                 'optionsString' => $generic_options_string,
                 'ajaxUrl' => admin_url('admin-ajax.php'),
-                'addAction' => 'slick_carousel_add_image',
-                'dropAction' => 'slick_carousel_drop_image',
-                'changeDestinationAction' => 'slick_carousel_update_destination'
+                'addAction' => 'slicky_carousel_add_image',
+                'dropAction' => 'slicky_carousel_drop_image',
+                'changeDestinationAction' => 'slicky_carousel_update_destination'
             )
         );
 
@@ -414,8 +414,8 @@ class Slick_Carousel extends WP_Widget{
         wp_register_script('carousel-render-js', $this->dir_url.'js/carousel-render.js', array('jquery','slick-js'), false, true);
         $responsive_enabled = '1' === get_option($this->option_prefix.$this->responsive_option['option_name'].'-lg', '0');
 
-        $slick_settings = array();
-        $this->parse_carousel_options($slick_settings, 'lg');
+        $slicky_settings = array();
+        $this->parse_carousel_options($slicky_settings, 'lg');
 
         if($responsive_enabled){
             $responsive_settings = array();
@@ -427,19 +427,19 @@ class Slick_Carousel extends WP_Widget{
 
                 array_push($responsive_settings, $size_setting);
             }
-            $slick_settings['responsive'] = $responsive_settings;
+            $slicky_settings['responsive'] = $responsive_settings;
         }
 
-        wp_localize_script('carousel-render-js', 'slickSettings', array('all' => $slick_settings));
+        wp_localize_script('carousel-render-js', 'slickySettings', array('all' => $slicky_settings));
 
-        wp_register_style('carousel-admin-css', $this->dir_url.'css/slick-carousel-admin.css');
+        wp_register_style('carousel-admin-css', $this->dir_url.'css/carousel-admin.css');
     }
 
 
     //parses saved option values for rendering an object in wp_localize_script
     private function parse_carousel_options(&$arr, $suffix, $output_default = false){
         if(!is_array($arr) || empty($suffix)) 
-            throw new Exception('Invalid parameters passed to Slick_Carousel::parse_carousel_options');
+            throw new Exception('Invalid parameters passed to Slicky_Carousel::parse_carousel_options');
         foreach($this->carousel_options as $option){
             $db_setting = get_option($this->option_prefix."{$option['option_name']}-$suffix", null);
             $default_set = false;
@@ -483,17 +483,17 @@ class Slick_Carousel extends WP_Widget{
 
     //put the admin page in the admin
     public function add_admin_page(){
-        add_theme_page('Carousel Options', 'Carousel Options', 'edit_theme_options', $this->admin_page_slug, array($this,'slick_carousel_admin_content'));
+        add_theme_page('Carousel Options', 'Carousel Options', 'edit_theme_options', $this->admin_page_slug, array($this,'slicky_carousel_admin_content'));
     }
 
     //register images
     public function register_image_sizes(){
-        add_image_size('slick-carousel-display', 350, 600, true);
-        add_image_size('slick-carousel-admin-preview', 175, 300, true);
+        add_image_size('slicky-carousel-display', 350, 600, true);
+        add_image_size('slicky-carousel-admin-preview', 175, 300, true);
     }
 
     //output html for the admin panel, calling settings api functions
-    public function slick_carousel_admin_content(){
+    public function slicky_carousel_admin_content(){
         if(!current_user_can('edit_theme_options')){
             wp_die(__('You do not have permission to access this page', 'sewchic'));
         }
@@ -615,7 +615,7 @@ class Slick_Carousel extends WP_Widget{
     //output a vanilla preview of the carousel
     public function output_admin_preview(){
         $args = array(
-            'before_widget' => '<div class="slick-carousel-widget" style="width:50%;margin:auto;">',
+            'before_widget' => '<div class="slicky-carousel-widget" style="width:50%;margin:auto;">',
             'after_widget' => '</div>'
         );
         $this->widget($args, array('container_width' => "100%", 'arrow_color' => '#000000', 'breakpoint' => NULL));
@@ -647,7 +647,7 @@ class Slick_Carousel extends WP_Widget{
 
             $images[] = array(
                 'img_id' => $el['img_id'],
-                'img_src' => wp_get_attachment_image_src($el['img_id'], 'slick-carousel-admin-preview'),
+                'img_src' => wp_get_attachment_image_src($el['img_id'], 'slicky-carousel-admin-preview'),
                 'dest_id' => $el['dest_id'],
                 'options' => $options_string
             );
@@ -710,7 +710,7 @@ class Slick_Carousel extends WP_Widget{
 
     //this makes the admin preview image size available to the wp.media object
     public function prepare_attachments($response, $attachment, $meta){
-        $size = 'slick-carousel-admin-preview';
+        $size = 'slicky-carousel-admin-preview';
         
         if(isset($meta['sizes'][$size])){
             $size_meta = $meta['sizes'][$size];
@@ -773,7 +773,7 @@ EOT;
     
     public function form($instance){
         //TODO:carousel alignment (left, right, center)
-        $admin_url = admin_url("themes.php?page=slick-carousel");
+        $admin_url = admin_url("themes.php?page=slicky-carousel");
         echo "<p>For all settings other than container width, theme, and size, please visit the <a href='$admin_url'>carousel settings page</a></p>";
         if(!isset($instance['container_width'])) $instance['container_width'] = "100%";
         if(!isset($instance['arrow_color'])) $instance['arrow_color'] = '#ffffff';
@@ -811,7 +811,7 @@ EOT;
                 <input 
                     id='{$this->get_field_id('arrow_color')}' 
                     name='{$this->get_field_name('arrow_color')}'
-                    class='slick-carousel-color-picker'
+                    class='slicky-carousel-color-picker'
                     value='{$instance['arrow_color']}'
                     type='text'
                 />
@@ -821,7 +821,7 @@ EOT;
                     <input 
                         id='{$this->get_field_id('responsive')}'
                         name='{$this->get_field_name('responsive')}'
-                        class='slick-carousel-widget-responsive'
+                        class='slicky-carousel-widget-responsive'
                         type='checkbox'
                         $responsive_checked
                     />
@@ -878,7 +878,7 @@ EOT;
         //size (large or small)
         wp_enqueue_style('slick-css');
         wp_enqueue_style('slick-css-theme');
-        wp_enqueue_style('slick-carousel-display-css');
+        wp_enqueue_style('carousel-display-css');
 
         wp_enqueue_script('slick-js');
         wp_enqueue_script('carousel-render-js');
@@ -892,25 +892,25 @@ EOT;
         if($instance['breakpoint'] == 'all screens') $instance['breakpoint'] = '9999px';
         $inline_custom_css = <<< EOT
             @media screen and (max-width: {$instance['breakpoint']}){
-                #slick_carousel_wrapper_{$this->number} > div, .slick-carousel-wrapper img{
+                #slicky_carousel_wrapper_{$this->number} > div, .slicky-carousel-wrapper img{
                     width: 175px;
                 }
             }
 EOT;
 
         wp_add_inline_style('slick-css-theme',$inline_slick_css);
-        wp_add_inline_style('slick-carousel-display-css',$inline_custom_css);
+        wp_add_inline_style('carousel-display-css',$inline_custom_css);
 
         echo $args['before_widget']; 
 
         $elements = get_option($this->option_prefix.'elements');
         
-        echo '<div style="width:'.$instance['container_width'].';margin:auto;" class="slick-carousel-wrapper" id="slick_carousel_wrapper_'.$this->number.'">';
+        echo '<div style="width:'.$instance['container_width'].';margin:auto;" class="slicky-carousel-wrapper" id="slicky_carousel_wrapper_'.$this->number.'">';
 
         foreach($elements as $element){
-            $image_src = wp_get_attachment_image_src($element['img_id'], 'slick-carousel-display');
+            $image_src = wp_get_attachment_image_src($element['img_id'], 'slicky-carousel-display');
             $href = $element['dest_id'] == -1 ? "#" : get_post_permalink($element['dest_id']);
-            require $this->dir_path.'templates/slick-element.php';
+            require $this->dir_path.'templates/slicky-element.php';
         }
 
         echo '</div>';
@@ -918,6 +918,5 @@ EOT;
         echo $args['after_widget']; 
     }
 }
-
 
 ?>

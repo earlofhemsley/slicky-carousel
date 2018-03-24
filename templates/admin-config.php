@@ -6,17 +6,17 @@
 <?php 
     foreach($images as $index => $image){
         echo <<< EOT
-            <div class="slick-carousel-image-element" data-index="$index">
-                <div class="slick-carousel-image-container">
+            <div class="slicky-carousel-image-element" data-index="$index">
+                <div class="slicky-carousel-image-container">
                     <img src="{$image['img_src'][0]}" />
                 </div>
-                <div class="slick-carousel-image-attributes">
+                <div class="slicky-carousel-image-attributes">
                     <div>
                         <p>Change the place a user will visit when clicking this image in the carousel:</p>
-                        <p><select class="slick-carousel-change-destination">{$image['options']}</select></p>
+                        <p><select class="slicky-carousel-change-destination">{$image['options']}</select></p>
                         <p class="message-bin"></p>
                     </div>
-                    <div><button type="button" class="slick-carousel-drop-element">Remove this image</button></div>
+                    <div><button type="button" class="slicky-carousel-drop-element">Remove this image</button></div>
                 </div>
             </div>
 EOT;

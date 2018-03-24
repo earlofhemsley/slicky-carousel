@@ -1,5 +1,5 @@
 jQuery(document).ready(function($){
-    $('.slick-carousel-wrapper').slick(
-        slickSettings.all
+    $('.slicky-carousel-wrapper').slick(
+        slickySettings.all
     );
 });
