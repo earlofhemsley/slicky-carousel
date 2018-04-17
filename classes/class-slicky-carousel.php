@@ -905,7 +905,7 @@ EOT;
 
         $elements = get_option($this->option_prefix.'elements');
         
-        echo '<div style="width:'.$instance['container_width'].';margin:auto;" class="slicky-carousel-wrapper" id="slicky_carousel_wrapper_'.$this->number.'">';
+        echo '<div style="display:none;width:'.$instance['container_width'].';margin:auto;" class="slicky-carousel-wrapper" id="slicky_carousel_wrapper_'.$this->number.'">';
 
         foreach($elements as $element){
             $image_src = wp_get_attachment_image_src($element['img_id'], 'slicky-carousel-display');
