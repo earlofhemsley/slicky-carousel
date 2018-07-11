@@ -894,6 +894,7 @@ EOT;
             @media screen and (max-width: {$instance['breakpoint']}){
                 #slicky_carousel_wrapper_{$this->number} > div, .slicky-carousel-wrapper img{
                     width: 175px;
+                    height: auto;
                 }
             }
 EOT;
